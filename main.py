@@ -5,14 +5,37 @@ from click import command
 
 users: list = []
 
+
+class User:
+    def __init__(self, name, surname, location, post):
+        self.name = name
+        self.surname = surname
+        self.location = location
+        self.post = post
+        self.cordinates = self.get_cordinates()
+        self.marker= map_widget.set_marker(self.cordinates[0], self.cordinates[1], text=f'{self.name} {self.surname} {self.location}')
+
+    def get_cordinates(self) -> list:
+        from bs4 import BeautifulSoup
+        import requests
+        adress_url = f'https://pl.wikipedia.org/wiki/{self.location}'
+        response = requests.get(adress_url)
+        if response.status_code == 200:
+            response_html = BeautifulSoup(response.content, 'html.parser')
+            return [
+                float(response_html.select('.latitude')[1].text.replace(',', '.')),
+                float(response_html.select('.longitude')[1].text.replace(',', '.'))
+            ]
+
 def add_users() -> None:
     name = entry_imie.get()
     surname = entry_nazwisko.get()
     location = entry_miejscowosc.get()
     post = entry_post.get()
 
-    user = {'name': name, 'surname': surname, 'location': location, 'post': post}
+    user = User(name=name, surname=surname, location=location, post=post)
     users.append(user)
+
 
     print(users)
 
@@ -28,21 +51,22 @@ def add_users() -> None:
 def show_users() -> None:
     listbox_lista_obiektow.delete(0, END)
     for idx,user in enumerate(users):
-        listbox_lista_obiektow.insert(idx, f'{idx+1}. {user["name"]}')
+        listbox_lista_obiektow.insert(idx, f'{idx+1}. {user.name} {user.surname}')
 
 def remove_user():
     i=listbox_lista_obiektow.index(ACTIVE)
     print(i)
+    users[i].marker.delete()
     users.pop(i)
     show_users()
 
 
 def edit_user():
     i=listbox_lista_obiektow.index(ACTIVE)
-    name = users[i]['name']
-    surname = users[i]['surname']
-    location = users[i]['location']
-    post = users[i]['post']
+    name = users[i].name
+    surname = users[i].surname
+    location = users[i].location
+    post = users[i].post
 
     entry_imie.insert(0, name)
     entry_nazwisko.insert(0, surname)
@@ -57,10 +81,14 @@ def update_user(i):
     location = entry_miejscowosc.get()
     post = entry_post.get()
 
-    users[i]['name'] = name
-    users[i]['surname'] = surname
-    users[i]['location'] = location
-    users[i]['post'] = post
+    users[i].name = name
+    users[i].surname = surname
+    users[i].location = location
+    users[i].post = post
+
+    users[i].cooordinates = users[i].get_cordinates()
+    users[i].marker.delete()
+    users[i].marker = map_widget.set_marker(users[i].cordinates[0], users[i].cordinates[1], text=f'{users[i].name}')
 
     show_users()
 
@@ -72,6 +100,16 @@ def update_user(i):
     entry_post.insert(0, post)
 
     entry_imie.focus()
+
+def show_user_details():
+    i=listbox_lista_obiektow.index(ACTIVE)
+    label_szczegoly_obiektu_name_wartosc.config(text=users[i].name)
+    label_szczegoly_obiektu_surname_wartosc.config(text=users[i].surname)
+    label_szczegoly_obiektu_miejscowosc_wartosc.config(text=users[i].location)
+    label_szczegoly_obiektu_post_wartosc.config(text=users[i].post)
+
+    map_widget.set_zoom(15)
+    map_widget.set_position(users[i].cordinates[0], users[i].cordinates[1])
 
 root = Tk()
 root.geometry("1200x700")
@@ -96,7 +134,7 @@ listbox_lista_obiektow=Listbox(ramka_lista_obiektow, width=50, height=10)
 listbox_lista_obiektow.grid(row=1, column=0, columnspan=3)
 
 
-button_pokaz_szczegoly=Button(ramka_lista_obiektow, text='Pokaz szczegóły')
+button_pokaz_szczegoly=Button(ramka_lista_obiektow, text='Pokaz szczegóły', command=show_user_details)
 button_pokaz_szczegoly.grid(row=2, column=0)
 
 
